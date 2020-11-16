@@ -3,25 +3,29 @@
 mod tests {
     use std::collections::HashSet;
 
-    use sb::SecureBroadcastAlgorithm;
+//    use sb::SecureBroadcastAlgorithm;
 
     // Here we choose DSB secure broadcast mechanism for testing with.
-    use sb_impl_dsb::Net;
+    // use sb_impl::Net;
+    use sb_impl_dsb::SecureBroadcastProc;
+    use sb_net_mem::Net;
+
+    use serde::Serialize;
 
     use crdts::quickcheck::{quickcheck, TestResult};
     use crdts::Orswot;
 
     use sb_algo_orswot::SBOrswot;
 
-    type NetSBOrswot<M> = Net<SBOrswot<M>>;
-
+    type NetSBOrswot<M> = Net<SecureBroadcastProc<SBOrswot<M>>, SBOrswot<M>>;
+    
     quickcheck! {
         fn prop_adds_show_up_on_read(n_procs: u8, members: Vec<u8>) -> TestResult {
             if n_procs == 0 || n_procs > 7 || members.len() > 10 {
                 return TestResult::discard();
             }
 
-            let mut net: NetSBOrswot<u8> = Net::new();
+            let mut net: NetSBOrswot<String> = Net::new();
             for _ in 0..n_procs {
                 let actor = net.initialize_proc();
 
