@@ -12,7 +12,7 @@ serde = "1.0.106"
 
 [dev-dependencies]
 # choose DSB as our secure broadcast impl for testing with.
-sb_impl_dsb = { git = "https://github.com/dan-da/sb_impl_dsb.git", branch="separate_net_layer" }
+sb_impl_dsb = { git = "https://github.com/dan-da/sb_impl_dsb.git", package="sb_impl_dsb", branch="separate_net_layer" }
 #sb_impl_dsb = { path = "/home/danda/dev/maidsafe/sb_impl_dsb", package="sb_impl_dsb" }
 
 # choose mem as our network impl for testing with.
