@@ -3,10 +3,11 @@
 mod tests {
     use std::collections::HashSet;
 
-//    use sb::SecureBroadcastAlgorithm;
+    use sb::SecureBroadcastAlgorithm;
 
     // Here we choose DSB secure broadcast mechanism for testing with.
     // use sb_impl::Net;
+    use sb::SecureBroadcastImpl;
     use sb_impl_dsb::SecureBroadcastProc;
     use sb_net_mem::Net;
 
@@ -25,7 +26,7 @@ mod tests {
                 return TestResult::discard();
             }
 
-            let mut net: NetSBOrswot<String> = Net::new();
+            let mut net: NetSBOrswot<u8> = Net::new();
             for _ in 0..n_procs {
                 let actor = net.initialize_proc();
 
