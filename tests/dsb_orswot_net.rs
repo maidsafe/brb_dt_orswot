@@ -3,15 +3,13 @@
 mod tests {
     use std::collections::HashSet;
 
-    use sb::{SecureBroadcastAlgorithm, SecureBroadcastImpl, SecureBroadcastNetwork};
+    use sb::{SecureBroadcastAlgorithm, SecureBroadcastImpl, SecureBroadcastNetwork, SecureBroadcastNetworkSimulator};
 
     // Here we choose DSB secure broadcast mechanism for testing with.
     use sb_impl_dsb::SecureBroadcastProc;
 
     // Here we choose SB in-mem network for testing with.
     use sb_net_mem::Net;
-
-    use serde::Serialize;
 
     use crdts::quickcheck::{quickcheck, TestResult};
     use crdts::Orswot;
