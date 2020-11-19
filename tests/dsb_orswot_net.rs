@@ -16,7 +16,7 @@ mod tests {
 
     use sb_algo_orswot::SBOrswot;
 
-    type NetSBOrswot<M> = Net<SecureBroadcastProc<SBOrswot<M>>, SBOrswot<M>>;
+    type NetSBOrswot<M> = Net<SecureBroadcastProc<SBOrswot<M>>>;
     
     quickcheck! {
         fn prop_adds_show_up_on_read(n_procs: u8, members: Vec<u8>) -> TestResult {
