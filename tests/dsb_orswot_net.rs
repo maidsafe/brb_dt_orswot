@@ -1,9 +1,11 @@
-
 #[cfg(test)]
 mod tests {
     use std::collections::HashSet;
 
-    use sb::{SecureBroadcastAlgorithm, SecureBroadcastImpl, SecureBroadcastNetwork, SecureBroadcastNetworkSimulator};
+    use sb::{
+        SecureBroadcastAlgorithm, SecureBroadcastImpl, SecureBroadcastNetwork,
+        SecureBroadcastNetworkSimulator,
+    };
 
     // Here we choose DSB secure broadcast mechanism for testing with.
     use sb_impl_dsb::SecureBroadcastProc;
@@ -17,7 +19,7 @@ mod tests {
     use sb_algo_orswot::SBOrswot;
 
     type NetSBOrswot<M> = Net<SecureBroadcastProc<SBOrswot<M>>>;
-    
+
     quickcheck! {
         fn prop_adds_show_up_on_read(n_procs: u8, members: Vec<u8>) -> TestResult {
             if n_procs == 0 || n_procs > 7 || members.len() > 10 {
@@ -79,7 +81,7 @@ mod tests {
             let actors_loop = net.actors().into_iter().collect::<Vec<_>>().into_iter().cycle();
             for (actor, (member, adding)) in actors_loop.zip(members.into_iter()) {
                 if adding {
-                    model.insert(member.clone());
+                    model.insert(member);
                     net.run_packets_to_completion(
                         net.on_proc(&actor, |p| p.exec_algo_op(|orswot| Some(orswot.add(member)))).unwrap()
                     );
