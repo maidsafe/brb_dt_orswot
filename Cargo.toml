@@ -8,6 +8,7 @@ license = "MIT OR BSD-3-Clause"
 [dependencies]
 crdts = "4.0.0"
 sb = { git = "https://github.com/dan-da/sb.git", package="sb", branch="separate_net_layer" }
+#sb = { path = "/home/danda/dev/maidsafe/sb" }
 serde = "1.0.106"
 
 [dev-dependencies]

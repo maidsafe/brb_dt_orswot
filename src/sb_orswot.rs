@@ -2,7 +2,7 @@ use crdts::{orswot, CmRDT, CvRDT};
 
 use sb::{Actor, SecureBroadcastAlgorithm};
 
-use serde::Serialize;
+use serde::{de::DeserializeOwned, Serialize};
 
 // Todo: add closure for app to perform biz logic validation.
 
@@ -36,8 +36,8 @@ impl<M: Clone + Eq + std::hash::Hash + std::fmt::Debug + Serialize> SBOrswot<M> 
     }
 }
 
-impl<M: Clone + Eq + std::hash::Hash + std::fmt::Debug + Serialize> SecureBroadcastAlgorithm
-    for SBOrswot<M>
+impl<M: Clone + Eq + std::hash::Hash + std::fmt::Debug + Serialize + Send + DeserializeOwned>
+    SecureBroadcastAlgorithm for SBOrswot<M>
 {
     type Op = orswot::Op<M, Actor>;
     type ReplicatedState = orswot::Orswot<M, Actor>;
