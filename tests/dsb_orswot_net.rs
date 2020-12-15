@@ -3,7 +3,7 @@ mod tests {
     use std::collections::HashSet;
 
     use sb::{
-        SecureBroadcastAlgorithm, SecureBroadcastImpl, SecureBroadcastNetwork,
+        SecureBroadcastAlgorithm, SecureBroadcastImpl,
         SecureBroadcastNetworkSimulator,
     };
 
