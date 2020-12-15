@@ -1,6 +1,6 @@
 use crdts::{orswot, CmRDT, CvRDT};
 
-use sb::{Actor, SecureBroadcastAlgorithm};
+use brb::{Actor, SecureBroadcastAlgorithm};
 
 use serde::{de::DeserializeOwned, Serialize};
 

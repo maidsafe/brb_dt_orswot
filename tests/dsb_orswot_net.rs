@@ -2,21 +2,21 @@
 mod tests {
     use std::collections::HashSet;
 
-    use sb::{
+    use brb::{
         SecureBroadcastAlgorithm, SecureBroadcastImpl,
         SecureBroadcastNetworkSimulator,
     };
 
     // Here we choose DSB secure broadcast mechanism for testing with.
-    use sb_impl_dsb::SecureBroadcastProc;
+    use brb_impl_dsb::SecureBroadcastProc;
 
     // Here we choose SB in-mem network for testing with.
-    use sb_net_mem::Net;
+    use brb_net_mem::Net;
 
     use crdts::quickcheck::{quickcheck, TestResult};
     use crdts::Orswot;
 
-    use sb_algo_orswot::SBOrswot;
+    use brb_algo_orswot::SBOrswot;
 
     type NetSBOrswot<M> = Net<SecureBroadcastProc<SBOrswot<M>>>;
 
