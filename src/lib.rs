@@ -1,3 +1,3 @@
 /// BFT Orswot algorithm
-mod sb_orswot;
-pub use sb_orswot::SBOrswot;
+mod brb_orswot;
+pub use brb_orswot::BRBOrswot;
