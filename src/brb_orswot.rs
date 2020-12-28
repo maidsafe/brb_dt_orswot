@@ -1,6 +1,7 @@
 use crdts::{orswot, CmRDT, CvRDT};
+use std::cmp::Ordering;
 
-use brb::{Actor, BRBAlgorithm};
+use brb::{Actor, BRBDataType};
 
 use serde::Serialize;
 
@@ -36,9 +37,7 @@ impl<M: Clone + Eq + std::hash::Hash + std::fmt::Debug + Serialize> BRBOrswot<M>
     }
 }
 
-impl<M: Clone + Eq + std::hash::Hash + std::fmt::Debug + Serialize> BRBAlgorithm
-    for BRBOrswot<M>
-{
+impl<M: Clone + Eq + std::hash::Hash + std::fmt::Debug + Serialize> BRBDataType for BRBOrswot<M> {
     type Op = orswot::Op<M, Actor>;
     type ReplicatedState = orswot::Orswot<M, Actor>;
 
@@ -73,7 +72,10 @@ impl<M: Clone + Eq + std::hash::Hash + std::fmt::Debug + Serialize> BRBAlgorithm
                 if members.len() != 1 {
                     println!("[ORSWOT/INVALID] We only support removes of a single element");
                     false
-                } else if !(clock <= &self.orswot.clock()) {
+                } else if matches!(
+                    clock.partial_cmp(&self.orswot.clock()),
+                    None | Some(Ordering::Greater)
+                ) {
                     // NOTE: this check renders all the "deferred_remove" logic in the ORSWOT obsolete.
                     //       The deferred removes would buffer these out-of-order removes.
                     println!("[ORSWOT/INVALID] This rm op is removing data we have not yet seen");
