@@ -5,7 +5,7 @@ mod tests {
     use crdts::quickcheck::{quickcheck, TestResult};
     use crdts::{CmRDT, Orswot};
 
-    use brb::{Actor, bft_membership, Net, Packet, BRBAlgorithm};
+    use brb::{Actor, BRBDataType, Error, MembershipError, Net, Packet};
     use brb_algo_orswot::BRBOrswot;
 
     fn bootstrap_net(net: &mut Net<BRBOrswot<u8>>, n_procs: u8) {
@@ -32,7 +32,7 @@ mod tests {
     fn test_sequential_adds_run_cuncurrently() {
         let mut net = Net::new();
         bootstrap_net(&mut net, 1);
-        let actor = net.members().into_iter().nth(0).unwrap();
+        let actor = net.members().into_iter().next().unwrap();
 
         // Initiate the signing round DSB but don't deliver signatures
         let pending_packets = net
@@ -45,17 +45,18 @@ mod tests {
             .collect::<Vec<_>>();
 
         // Initiate the signing round again but for a different op (adding 1 instead of 0)
-        let invalid_pending_packets = net
+        #[allow(clippy::needless_collect)]
+        let invalid_pending_packets_cnt = net
             .on_proc(&actor, |proc| {
                 proc.exec_algo_op(|orswot| Some(orswot.add(1))).unwrap()
             })
             .unwrap()
             .into_iter()
             .flat_map(|p| net.deliver_packet(p))
-            .collect::<Vec<_>>();
+            .count();
 
         assert_eq!(net.count_invalid_packets(), 1);
-        assert_eq!(invalid_pending_packets.len(), 0);
+        assert_eq!(invalid_pending_packets_cnt, 0);
 
         net.run_packets_to_completion(pending_packets);
 
@@ -158,7 +159,7 @@ mod tests {
             let actors_loop = net.actors().into_iter().collect::<Vec<_>>().into_iter().cycle();
             for (actor, (member, adding)) in actors_loop.zip(members.into_iter()) {
                 if adding {
-                    model.insert(member.clone());
+                    model.insert(member);
                     net.run_packets_to_completion(
                         net.on_proc(&actor, |p| p.exec_algo_op(|orswot| Some(orswot.add(member))).unwrap()).unwrap()
                     );
@@ -200,13 +201,13 @@ mod tests {
 
             for mut instr in instructions {
                 let members: Vec<_> = net.members().into_iter().collect();
-                instr.0 = instr.0 % 6;
+                instr.0 %= 6;
                 match instr {
-                    (0, queue_idx, _)  if packet_queues.len() > 0 => {
+                    (0, queue_idx, _)  if !packet_queues.is_empty() => {
                         // deliver packet
                         let queue = packet_queues.keys().nth(queue_idx as usize % packet_queues.len()).cloned().unwrap();
                         let packets = packet_queues.entry(queue).or_default();
-                        if packets.len() > 0 {
+                        if !packets.is_empty() {
                             let packet = packets.remove(0);
 
                             if packet.payload.is_proof_of_agreement() {
@@ -215,7 +216,7 @@ mod tests {
                             }
 
                             for resp_packet in net.deliver_packet(packet) {
-                                let queue = (resp_packet.source.clone(), resp_packet.dest.clone());
+                                let queue = (resp_packet.source, resp_packet.dest);
                                 packet_queues
                                     .entry(queue)
                                     .or_default()
@@ -232,16 +233,16 @@ mod tests {
                     }
                     (2, actor_idx, _) if !members.is_empty() => {
                         // request membership
-                        let actor = members[actor_idx as usize % members.len()].clone();
+                        let actor = members[actor_idx as usize % members.len()];
                         if blocked.contains(&actor) {continue};
-                        blocked.insert(actor.clone());
+                        blocked.insert(actor);
 
             let join_request_resp = net.on_proc_mut(&genesis_actor, |p| p.request_membership(actor)).unwrap();
             match join_request_resp {
                 Ok(packets) => {
                         for packet in packets {
                             for resp_packet in net.deliver_packet(packet) {
-                                let queue = (resp_packet.source.clone(), resp_packet.dest.clone());
+                                let queue = (resp_packet.source, resp_packet.dest);
                                 packet_queues
                                     .entry(queue)
                                     .or_default()
@@ -249,7 +250,7 @@ mod tests {
                             }
                         }
                 }
-                Err(bft_membership::Error::JoinRequestForExistingMember {..}) => {
+                Err(Error::Membership(MembershipError::JoinRequestForExistingMember {..})) => {
                 assert!(net.on_proc(&genesis_actor, |p| p.peers().unwrap()).unwrap().contains(&actor));
                 },
                 e => panic!("Unexpected error {:?}", e)
@@ -257,14 +258,14 @@ mod tests {
                     }
                     (3, actor_idx, v) if !members.is_empty() => {
                         // add v
-                        let actor = members[actor_idx as usize % members.len()].clone();
+                        let actor = members[actor_idx as usize % members.len()];
                         if blocked.contains(&actor) {continue};
-                        blocked.insert(actor.clone());
+                        blocked.insert(actor);
 
                         model.apply(model.add(v, model.read_ctx().derive_add_ctx(actor)));
                         for packet in net.on_proc(&actor, |p| p.exec_algo_op(|orswot| Some(orswot.add(v))).unwrap()).unwrap() {
                             for resp_packet in net.deliver_packet(packet) {
-                                let queue = (resp_packet.source.clone(), resp_packet.dest.clone());
+                                let queue = (resp_packet.source, resp_packet.dest);
                                 packet_queues
                                     .entry(queue)
                                     .or_default()
@@ -274,15 +275,15 @@ mod tests {
                     }
                     (4, actor_idx, v)  if !members.is_empty() => {
                         // remove v
-                        let actor = members[actor_idx as usize % members.len()].clone();
+                        let actor = members[actor_idx as usize % members.len()];
                         if blocked.contains(&actor) {continue};
-                        blocked.insert(actor.clone());
+                        blocked.insert(actor);
 
                         model.apply(model.rm(v, model.contains(&v).derive_rm_ctx()));
 
                         for packet in net.on_proc(&actor, |p| p.exec_algo_op(|orswot| orswot.rm(v)).unwrap()).unwrap() {
                             for resp_packet in net.deliver_packet(packet) {
-                                let queue = (resp_packet.source.clone(), resp_packet.dest.clone());
+                                let queue = (resp_packet.source, resp_packet.dest);
                                 packet_queues
                                     .entry(queue)
                                     .or_default()
@@ -292,13 +293,13 @@ mod tests {
                     }
                     (5, actor_idx, target_actor_idx) if !members.is_empty() => {
                         // kill peer
-                        let actor = members[actor_idx as usize % members.len()].clone();
+                        let actor = members[actor_idx as usize % members.len()];
                         if blocked.contains(&actor) {continue};
-                        blocked.insert(actor.clone());
-                        let target_actor = members[target_actor_idx as usize % members.len()].clone();
+                        blocked.insert(actor);
+                        let target_actor = members[target_actor_idx as usize % members.len()];
                         for packet in net.on_proc_mut(&actor, |p| p.kill_peer(target_actor).unwrap()).unwrap() {
                             for resp_packet in net.deliver_packet(packet) {
-                                let queue = (resp_packet.source.clone(), resp_packet.dest.clone());
+                                let queue = (resp_packet.source, resp_packet.dest);
                                 packet_queues
                                     .entry(queue)
                                     .or_default()
