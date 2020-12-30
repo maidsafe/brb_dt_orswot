@@ -10,18 +10,18 @@ mod tests {
 
     fn bootstrap_net(net: &mut Net<BRBOrswot<u8>>, n_procs: u8) {
         let genesis_actor = net.initialize_proc();
-        net.on_proc_mut(&genesis_actor, |p| p.trust_peer(genesis_actor))
+        net.on_proc_mut(&genesis_actor, |p| p.force_join(genesis_actor))
             .unwrap();
 
         // 1 proc was taken by the genesis, so subtract 1
         for _ in 0..(n_procs - 1) {
             let actor = net.initialize_proc();
-            net.on_proc_mut(&actor, |p| p.trust_peer(genesis_actor));
-            net.anti_entropy();
+            net.on_proc_mut(&actor, |p| p.force_join(genesis_actor));
             let packets = net
                 .on_proc_mut(&genesis_actor, |p| p.request_membership(actor).unwrap())
                 .unwrap();
             net.run_packets_to_completion(packets);
+            net.anti_entropy();
         }
 
         assert_eq!(net.members(), net.actors());
@@ -193,7 +193,7 @@ mod tests {
             println!("instr: {:?}", instructions);
             let mut net: Net<BRBOrswot<u8>> = Net::new();
             let genesis_actor = net.initialize_proc();
-            net.on_proc_mut(&genesis_actor, |p| p.trust_peer(genesis_actor)).unwrap();
+            net.on_proc_mut(&genesis_actor, |p| p.force_join(genesis_actor)).unwrap();
 
             let mut packet_queues: BTreeMap<(Actor, Actor), Vec<Packet<_>>> = Default::default();
             let mut model: Orswot<u8, Actor> = Default::default();
@@ -227,9 +227,8 @@ mod tests {
                     (1, _, _) if net.actors().len() < 7 => {
                         // add peer
                         let actor = net.initialize_proc();
-                        net.on_proc_mut(&actor, |p| p.trust_peer(genesis_actor));
-                        let genesis_state = net.proc_from_actor(&genesis_actor).unwrap().state();
-                        net.on_proc_mut(&actor, |p| p.sync_from(genesis_state));
+                        net.on_proc_mut(&actor, |p| p.force_join(genesis_actor));
+                        net.run_packets_to_completion(vec![net.on_proc(&actor, |p| p.anti_entropy(genesis_actor).unwrap()).unwrap()]);
                     }
                     (2, actor_idx, _) if !members.is_empty() => {
                         // request membership
