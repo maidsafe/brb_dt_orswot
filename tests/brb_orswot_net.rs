@@ -6,7 +6,7 @@ mod tests {
     use crdts::{CmRDT, Orswot};
 
     use brb::{Actor, BRBDataType, Error, MembershipError, Net, Packet};
-    use brb_algo_orswot::BRBOrswot;
+    use brb_dt_orswot::BRBOrswot;
 
     fn bootstrap_net(net: &mut Net<BRBOrswot<u8>>, n_procs: u8) {
         let genesis_actor = net.initialize_proc();
@@ -37,7 +37,7 @@ mod tests {
         // Initiate the signing round DSB but don't deliver signatures
         let pending_packets = net
             .on_proc(&actor, |proc| {
-                proc.exec_algo_op(|orswot| Some(orswot.add(0))).unwrap()
+                proc.exec_dt_op(|orswot| Some(orswot.add(0))).unwrap()
             })
             .unwrap()
             .into_iter()
@@ -48,7 +48,7 @@ mod tests {
         #[allow(clippy::needless_collect)]
         let invalid_pending_packets_cnt = net
             .on_proc(&actor, |proc| {
-                proc.exec_algo_op(|orswot| Some(orswot.add(1))).unwrap()
+                proc.exec_dt_op(|orswot| Some(orswot.add(1))).unwrap()
             })
             .unwrap()
             .into_iter()
@@ -63,7 +63,7 @@ mod tests {
         assert!(net.members_are_in_agreement());
 
         assert_eq!(
-            net.on_proc(&actor, |p| p.state().algo_state.read().val),
+            net.on_proc(&actor, |p| p.state().dt_state.read().val),
             Some(vec![0u8].into_iter().collect())
         );
     }
@@ -84,7 +84,7 @@ mod tests {
         // initiating process 'a' broadcasts requests for validation
         let req_for_valid_packets = net
             .on_proc(&a, |p| {
-                p.exec_algo_op(|orswot| Some(orswot.add(value_to_add)))
+                p.exec_dt_op(|orswot| Some(orswot.add(value_to_add)))
                     .unwrap()
             })
             .unwrap();
@@ -113,7 +113,7 @@ mod tests {
         assert!(net.members_are_in_agreement());
         // assert_eq!(net.count_invalid_packets(), 0);
         assert!(net
-            .on_proc(&a, |p| p.state().algo_state.contains(&value_to_add).val)
+            .on_proc(&a, |p| p.state().dt_state.contains(&value_to_add).val)
             .unwrap());
     }
 
@@ -129,7 +129,7 @@ mod tests {
             let actors_loop = net.actors().into_iter().collect::<Vec<_>>().into_iter().cycle();
             for (i, member) in actors_loop.zip(members.clone().into_iter()) {
                 net.run_packets_to_completion(
-                    net.on_proc(&i, |p| p.exec_algo_op(|orswot| Some(orswot.add(member))).unwrap()).unwrap()
+                    net.on_proc(&i, |p| p.exec_dt_op(|orswot| Some(orswot.add(member))).unwrap()).unwrap()
                 )
             }
 
@@ -161,12 +161,12 @@ mod tests {
                 if adding {
                     model.insert(member);
                     net.run_packets_to_completion(
-                        net.on_proc(&actor, |p| p.exec_algo_op(|orswot| Some(orswot.add(member))).unwrap()).unwrap()
+                        net.on_proc(&actor, |p| p.exec_dt_op(|orswot| Some(orswot.add(member))).unwrap()).unwrap()
                     );
                 } else {
                     model.remove(&member);
                     net.run_packets_to_completion(
-                        net.on_proc(&actor, |p| p.exec_algo_op(|orswot| orswot.rm(member)).unwrap()).unwrap()
+                        net.on_proc(&actor, |p| p.exec_dt_op(|orswot| orswot.rm(member)).unwrap()).unwrap()
                     );
                 }
             }
@@ -262,7 +262,7 @@ mod tests {
                         blocked.insert(actor);
 
                         model.apply(model.add(v, model.read_ctx().derive_add_ctx(actor)));
-                        for packet in net.on_proc(&actor, |p| p.exec_algo_op(|orswot| Some(orswot.add(v))).unwrap()).unwrap() {
+                        for packet in net.on_proc(&actor, |p| p.exec_dt_op(|orswot| Some(orswot.add(v))).unwrap()).unwrap() {
                             for resp_packet in net.deliver_packet(packet) {
                                 let queue = (resp_packet.source, resp_packet.dest);
                                 packet_queues
@@ -280,7 +280,7 @@ mod tests {
 
                         model.apply(model.rm(v, model.contains(&v).derive_rm_ctx()));
 
-                        for packet in net.on_proc(&actor, |p| p.exec_algo_op(|orswot| orswot.rm(v)).unwrap()).unwrap() {
+                        for packet in net.on_proc(&actor, |p| p.exec_dt_op(|orswot| orswot.rm(v)).unwrap()).unwrap() {
                             for resp_packet in net.deliver_packet(packet) {
                                 let queue = (resp_packet.source, resp_packet.dest);
                                 packet_queues
@@ -319,7 +319,7 @@ mod tests {
             // assert_eq!(net.count_invalid_packets(), 0);
             assert_eq!(
                 net.on_proc(&genesis_actor, |p| {
-                    p.state().algo_state
+                    p.state().dt_state
                 }),
                 Some(model)
             );
