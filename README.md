@@ -5,7 +5,7 @@
 
 ## About
 
-Please see the [sb crate](https://github.com/maidsafe/sb/).
+Please see the [brb crate](https://github.com/maidsafe/brb/).
 
 ## License
 
