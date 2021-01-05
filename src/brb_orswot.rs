@@ -1,31 +1,30 @@
-use crdts::{orswot, CmRDT, CvRDT};
+use crdts::{orswot, CmRDT};
 use std::cmp::Ordering;
+use std::{fmt::Debug, hash::Hash};
 
 use brb::{Actor, BRBDataType};
 
 use serde::Serialize;
 
-// Todo: add closure for app to perform biz logic validation.
-
 #[derive(Debug, Serialize, PartialEq, Eq, Clone)]
-pub struct BRBOrswot<M: Clone + Eq + std::hash::Hash + std::fmt::Debug + Serialize> {
+pub struct BRBOrswot<M: Clone + Eq + Debug + Hash + Serialize> {
     actor: Actor,
     orswot: orswot::Orswot<M, Actor>,
 }
 
-impl<M: Clone + Eq + std::hash::Hash + std::fmt::Debug + Serialize> BRBOrswot<M> {
+impl<M: Clone + Eq + Debug + Hash + Serialize> BRBOrswot<M> {
     pub fn add(&self, member: M) -> orswot::Op<M, Actor> {
         let add_ctx = self.orswot.read_ctx().derive_add_ctx(self.actor);
         self.orswot.add(member, add_ctx)
     }
 
-    pub fn rm(&self, member: M) -> Option<orswot::Op<M, Actor>> {
-        let contains_ctx = self.orswot.contains(&member);
-        if contains_ctx.val {
-            Some(self.orswot.rm(member, contains_ctx.derive_rm_ctx()))
-        } else {
-            None
-        }
+    pub fn rm(&self, member: M) -> orswot::Op<M, Actor> {
+        let rm_ctx = self.orswot.read_ctx().derive_rm_ctx();
+        self.orswot.rm(member, rm_ctx)
+    }
+
+    pub fn contains(&self, member: &M) -> bool {
+        self.orswot.contains(member).val
     }
 
     pub fn actor(&self) -> &Actor {
@@ -37,23 +36,14 @@ impl<M: Clone + Eq + std::hash::Hash + std::fmt::Debug + Serialize> BRBOrswot<M>
     }
 }
 
-impl<M: Clone + Eq + std::hash::Hash + std::fmt::Debug + Serialize> BRBDataType for BRBOrswot<M> {
+impl<M: Clone + Eq + Debug + Hash + Serialize> BRBDataType for BRBOrswot<M> {
     type Op = orswot::Op<M, Actor>;
-    type ReplicatedState = orswot::Orswot<M, Actor>;
 
     fn new(actor: Actor) -> Self {
         BRBOrswot {
             actor,
             orswot: orswot::Orswot::new(),
         }
-    }
-
-    fn state(&self) -> Self::ReplicatedState {
-        self.orswot.clone()
-    }
-
-    fn sync_from(&mut self, other: Self::ReplicatedState) {
-        self.orswot.merge(other);
     }
 
     fn validate(&self, from: &Actor, op: &Self::Op) -> bool {
