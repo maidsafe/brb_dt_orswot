@@ -5,7 +5,7 @@ mod tests {
     use crdts::quickcheck::{quickcheck, TestResult};
     use crdts::{CmRDT, Orswot};
 
-    use brb::{Actor, BRBDataType, Error, MembershipError, Net, Packet};
+    use brb::{Actor, Error, MembershipError, Net, Packet};
     use brb_dt_orswot::BRBOrswot;
 
     fn bootstrap_net(net: &mut Net<BRBOrswot<u8>>, n_procs: u8) {
@@ -36,20 +36,15 @@ mod tests {
 
         // Initiate the signing round DSB but don't deliver signatures
         let pending_packets = net
-            .on_proc(&actor, |proc| {
-                proc.exec_dt_op(|orswot| Some(orswot.add(0))).unwrap()
-            })
+            .on_proc(&actor, |proc| proc.exec_op(proc.dt.add(0)).unwrap())
             .unwrap()
             .into_iter()
             .flat_map(|p| net.deliver_packet(p))
             .collect::<Vec<_>>();
 
         // Initiate the signing round again but for a different op (adding 1 instead of 0)
-        #[allow(clippy::needless_collect)]
         let invalid_pending_packets_cnt = net
-            .on_proc(&actor, |proc| {
-                proc.exec_dt_op(|orswot| Some(orswot.add(1))).unwrap()
-            })
+            .on_proc(&actor, |proc| proc.exec_op(proc.dt.add(1)).unwrap())
             .unwrap()
             .into_iter()
             .flat_map(|p| net.deliver_packet(p))
@@ -63,7 +58,7 @@ mod tests {
         assert!(net.members_are_in_agreement());
 
         assert_eq!(
-            net.on_proc(&actor, |p| p.state().dt_state.read().val),
+            net.on_proc(&actor, |p| p.dt.orswot().read().val),
             Some(vec![0u8].into_iter().collect())
         );
     }
@@ -83,10 +78,7 @@ mod tests {
 
         // initiating process 'a' broadcasts requests for validation
         let req_for_valid_packets = net
-            .on_proc(&a, |p| {
-                p.exec_dt_op(|orswot| Some(orswot.add(value_to_add)))
-                    .unwrap()
-            })
+            .on_proc(&a, |p| p.exec_op(p.dt.add(value_to_add)).unwrap())
             .unwrap();
 
         // we deliver these packets to destinations
@@ -111,10 +103,7 @@ mod tests {
         net.run_packets_to_completion(proofs_packets);
 
         assert!(net.members_are_in_agreement());
-        // assert_eq!(net.count_invalid_packets(), 0);
-        assert!(net
-            .on_proc(&a, |p| p.state().dt_state.contains(&value_to_add).val)
-            .unwrap());
+        assert!(net.on_proc(&a, |p| p.dt.contains(&value_to_add)).unwrap());
     }
 
     quickcheck! {
@@ -129,7 +118,7 @@ mod tests {
             let actors_loop = net.actors().into_iter().collect::<Vec<_>>().into_iter().cycle();
             for (i, member) in actors_loop.zip(members.clone().into_iter()) {
                 net.run_packets_to_completion(
-                    net.on_proc(&i, |p| p.exec_dt_op(|orswot| Some(orswot.add(member))).unwrap()).unwrap()
+                    net.on_proc(&i, |p| p.exec_op(p.dt.add(member)).unwrap()).unwrap()
                 )
             }
 
@@ -137,7 +126,7 @@ mod tests {
 
             let orswot: Orswot<_, _> = net.on_proc(
                 &net.actors().into_iter().next().unwrap(),
-                |p| p.read_state(|orswot| orswot.state())
+                |p| p.dt.orswot().clone()
             ).unwrap();
 
             assert_eq!(members.into_iter().collect::<HashSet<_>>(), orswot.read().val);
@@ -161,24 +150,24 @@ mod tests {
                 if adding {
                     model.insert(member);
                     net.run_packets_to_completion(
-                        net.on_proc(&actor, |p| p.exec_dt_op(|orswot| Some(orswot.add(member))).unwrap()).unwrap()
+                        net.on_proc(&actor, |p| p.exec_op(p.dt.add(member)).unwrap()).unwrap()
                     );
                 } else {
                     model.remove(&member);
                     net.run_packets_to_completion(
-                        net.on_proc(&actor, |p| p.exec_dt_op(|orswot| orswot.rm(member)).unwrap()).unwrap()
+                        net.on_proc(&actor, |p| p.exec_op(p.dt.rm(member)).unwrap()).unwrap()
                     );
                 }
             }
 
             assert!(net.members_are_in_agreement());
 
-            let orswot: Orswot<_, _> = net.on_proc(
+            let orswot_state: HashSet<_> = net.on_proc(
                 &net.actors().into_iter().next().unwrap(),
-                |p| p.read_state(|orswot| orswot.state())
+                |p| p.dt.orswot().read().val
             ).unwrap();
 
-            assert_eq!(model, orswot.read().val);
+            assert_eq!(model, orswot_state);
 
             TestResult::passed()
         }
@@ -262,7 +251,7 @@ mod tests {
                         blocked.insert(actor);
 
                         model.apply(model.add(v, model.read_ctx().derive_add_ctx(actor)));
-                        for packet in net.on_proc(&actor, |p| p.exec_dt_op(|orswot| Some(orswot.add(v))).unwrap()).unwrap() {
+                        for packet in net.on_proc(&actor, |p| p.exec_op(p.dt.add(v)).unwrap()).unwrap() {
                             for resp_packet in net.deliver_packet(packet) {
                                 let queue = (resp_packet.source, resp_packet.dest);
                                 packet_queues
@@ -280,7 +269,7 @@ mod tests {
 
                         model.apply(model.rm(v, model.contains(&v).derive_rm_ctx()));
 
-                        for packet in net.on_proc(&actor, |p| p.exec_dt_op(|orswot| orswot.rm(v)).unwrap()).unwrap() {
+                        for packet in net.on_proc(&actor, |p| p.exec_op(p.dt.rm(v)).unwrap()).unwrap() {
                             for resp_packet in net.deliver_packet(packet) {
                                 let queue = (resp_packet.source, resp_packet.dest);
                                 packet_queues
@@ -316,10 +305,9 @@ mod tests {
             }
 
             assert!(net.members_are_in_agreement());
-            // assert_eq!(net.count_invalid_packets(), 0);
             assert_eq!(
                 net.on_proc(&genesis_actor, |p| {
-                    p.state().dt_state
+                    p.dt.orswot().clone()
                 }),
                 Some(model)
             );
