@@ -42,7 +42,7 @@ impl<M: Clone + Eq + Debug + Hash + Serialize> BRBOrswot<M> {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum Validation {
+pub enum ValidationError {
     SourceDoesNotMatchOp { source: Actor, op_source: Actor },
     RemoveOnlySupportedForOneElement,
     RemovingDataWeHaventSeenYet,
@@ -51,7 +51,7 @@ pub enum Validation {
 
 impl<M: Clone + Eq + Debug + Hash + Serialize> BRBDataType for BRBOrswot<M> {
     type Op = orswot::Op<M, Actor>;
-    type Validation = Validation;
+    type ValidationError = ValidationError;
 
     fn new(actor: Actor) -> Self {
         BRBOrswot {
@@ -60,13 +60,15 @@ impl<M: Clone + Eq + Debug + Hash + Serialize> BRBDataType for BRBOrswot<M> {
         }
     }
 
-    fn validate(&self, source: &Actor, op: &Self::Op) -> Result<(), Self::Validation> {
-        self.orswot.validate_op(&op).map_err(Validation::Orswot)?;
+    fn validate(&self, source: &Actor, op: &Self::Op) -> Result<(), Self::ValidationError> {
+        self.orswot
+            .validate_op(&op)
+            .map_err(ValidationError::Orswot)?;
 
         match op {
             orswot::Op::Add { dot, members: _ } => {
                 if &dot.actor != source {
-                    Err(Validation::SourceDoesNotMatchOp {
+                    Err(ValidationError::SourceDoesNotMatchOp {
                         source: *source,
                         op_source: dot.actor,
                     })
@@ -76,14 +78,14 @@ impl<M: Clone + Eq + Debug + Hash + Serialize> BRBDataType for BRBOrswot<M> {
             }
             orswot::Op::Rm { clock, members } => {
                 if members.len() != 1 {
-                    Err(Validation::RemoveOnlySupportedForOneElement)
+                    Err(ValidationError::RemoveOnlySupportedForOneElement)
                 } else if matches!(
                     clock.partial_cmp(&self.orswot.clock()),
                     None | Some(Ordering::Greater)
                 ) {
                     // NOTE: this check renders all the "deferred_remove" logic in the ORSWOT obsolete.
                     //       The deferred removes would buffer these out-of-order removes.
-                    Err(Validation::RemovingDataWeHaventSeenYet)
+                    Err(ValidationError::RemovingDataWeHaventSeenYet)
                 } else {
                     Ok(())
                 }
