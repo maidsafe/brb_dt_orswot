@@ -1,9 +1,10 @@
-use crdts::{orswot, CmRDT};
 use std::cmp::Ordering;
+use std::collections::HashSet;
 use std::{fmt::Debug, hash::Hash};
 
 use brb::{Actor, BRBDataType};
 
+use crdts::{orswot, CmRDT};
 use serde::Serialize;
 
 #[derive(Debug, Serialize, PartialEq, Eq, Clone)]
@@ -34,10 +35,23 @@ impl<M: Clone + Eq + Debug + Hash + Serialize> BRBOrswot<M> {
     pub fn orswot(&self) -> &orswot::Orswot<M, Actor> {
         &self.orswot
     }
+
+    pub fn read(&self) -> HashSet<M> {
+        self.orswot.read().val
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum Validation {
+    SourceDoesNotMatchOp { source: Actor, op_source: Actor },
+    RemoveOnlySupportedForOneElement,
+    RemovingDataWeHaventSeenYet,
+    Orswot(<orswot::Orswot<(), Actor> as CmRDT>::Validation),
 }
 
 impl<M: Clone + Eq + Debug + Hash + Serialize> BRBDataType for BRBOrswot<M> {
     type Op = orswot::Op<M, Actor>;
+    type Validation = Validation;
 
     fn new(actor: Actor) -> Self {
         BRBOrswot {
@@ -46,32 +60,32 @@ impl<M: Clone + Eq + Debug + Hash + Serialize> BRBDataType for BRBOrswot<M> {
         }
     }
 
-    fn validate(&self, from: &Actor, op: &Self::Op) -> bool {
+    fn validate(&self, source: &Actor, op: &Self::Op) -> Result<(), Self::Validation> {
+        self.orswot.validate_op(&op).map_err(Validation::Orswot)?;
+
         match op {
             orswot::Op::Add { dot, members: _ } => {
-                if &dot.actor != from {
-                    println!(
-                        "[ORSWOT/INVALID] Attempting to add with a dot different from the source proc"
-                    );
-                    false
+                if &dot.actor != source {
+                    Err(Validation::SourceDoesNotMatchOp {
+                        source: *source,
+                        op_source: dot.actor,
+                    })
                 } else {
-                    true
+                    Ok(())
                 }
             }
             orswot::Op::Rm { clock, members } => {
                 if members.len() != 1 {
-                    println!("[ORSWOT/INVALID] We only support removes of a single element");
-                    false
+                    Err(Validation::RemoveOnlySupportedForOneElement)
                 } else if matches!(
                     clock.partial_cmp(&self.orswot.clock()),
                     None | Some(Ordering::Greater)
                 ) {
                     // NOTE: this check renders all the "deferred_remove" logic in the ORSWOT obsolete.
                     //       The deferred removes would buffer these out-of-order removes.
-                    println!("[ORSWOT/INVALID] This rm op is removing data we have not yet seen");
-                    false
+                    Err(Validation::RemovingDataWeHaventSeenYet)
                 } else {
-                    true
+                    Ok(())
                 }
             }
         }
