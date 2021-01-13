@@ -58,7 +58,7 @@ mod tests {
         assert!(net.members_are_in_agreement());
 
         assert_eq!(
-            net.on_proc(&actor, |p| p.dt.orswot().read().val),
+            net.on_proc(&actor, |p| p.dt.read()),
             Some(vec![0u8].into_iter().collect())
         );
     }
@@ -164,7 +164,7 @@ mod tests {
 
             let orswot_state: HashSet<_> = net.on_proc(
                 &net.actors().into_iter().next().unwrap(),
-                |p| p.dt.orswot().read().val
+                |p| p.dt.read()
             ).unwrap();
 
             assert_eq!(model, orswot_state);
