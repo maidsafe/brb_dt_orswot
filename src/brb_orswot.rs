@@ -2,21 +2,20 @@ use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::{fmt::Debug, hash::Hash};
 
-use brb::{Actor, BRBDataType, Sig};
+use brb::BRBDataType;
 
 use crdts::{orswot, CmRDT};
 use serde::Serialize;
 
 #[derive(Debug, Serialize, PartialEq, Eq, Clone)]
-pub struct BRBOrswot<A: Actor<S>, S: Sig, M: Clone + Eq + Hash> {
+pub struct BRBOrswot<A: Hash + Ord + Clone, M: Clone + Eq + Hash> {
     actor: A,
     orswot: orswot::Orswot<M, A>,
-    sig: core::marker::PhantomData<S>,
 }
 
-impl<A: Actor<S>, S: Sig, M: Clone + Eq + Hash> BRBOrswot<A, S, M> {
+impl<A: Hash + Ord + Clone, M: Clone + Eq + Hash> BRBOrswot<A, M> {
     pub fn add(&self, member: M) -> orswot::Op<M, A> {
-        let add_ctx = self.orswot.read_ctx().derive_add_ctx(self.actor);
+        let add_ctx = self.orswot.read_ctx().derive_add_ctx(self.actor.clone());
         self.orswot.add(member, add_ctx)
     }
 
@@ -50,8 +49,10 @@ pub enum ValidationError<A: Hash + Ord + Clone> {
     Orswot(<orswot::Orswot<(), A> as CmRDT>::Validation),
 }
 
-impl<A: Actor<S> + 'static, S: Sig, M: Clone + Eq + Hash + Debug + Serialize> BRBDataType<A>
-    for BRBOrswot<A, S, M>
+impl<
+        A: Hash + Ord + Clone + Debug + Serialize + 'static,
+        M: Clone + Eq + Hash + Debug + Serialize,
+    > BRBDataType<A> for BRBOrswot<A, M>
 {
     type Op = orswot::Op<M, A>;
     type ValidationError = ValidationError<A>;
@@ -60,7 +61,6 @@ impl<A: Actor<S> + 'static, S: Sig, M: Clone + Eq + Hash + Debug + Serialize> BR
         BRBOrswot {
             actor,
             orswot: Default::default(),
-            sig: Default::default(),
         }
     }
 
@@ -73,8 +73,8 @@ impl<A: Actor<S> + 'static, S: Sig, M: Clone + Eq + Hash + Debug + Serialize> BR
             orswot::Op::Add { dot, members: _ } => {
                 if &dot.actor != source {
                     Err(ValidationError::SourceDoesNotMatchOp {
-                        source: *source,
-                        op_source: dot.actor,
+                        source: source.clone(),
+                        op_source: dot.actor.clone(),
                     })
                 } else {
                     Ok(())
