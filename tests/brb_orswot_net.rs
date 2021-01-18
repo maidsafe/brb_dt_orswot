@@ -5,10 +5,12 @@ mod tests {
     use crdts::quickcheck::{quickcheck, TestResult};
     use crdts::{CmRDT, Orswot};
 
-    use brb::{Actor, Error, MembershipError, Net, Packet};
-    use brb_dt_orswot::BRBOrswot;
+    use brb::net::{Actor, Net, Sig};
+    use brb::{Error, MembershipError, Packet};
 
-    fn bootstrap_net(net: &mut Net<BRBOrswot<u8>>, n_procs: u8) {
+    type BRBOrswot = brb_dt_orswot::BRBOrswot<Actor, Sig, u8>;
+
+    fn bootstrap_net(net: &mut Net<BRBOrswot>, n_procs: u8) {
         let genesis_actor = net.initialize_proc();
         net.on_proc_mut(&genesis_actor, |p| p.force_join(genesis_actor))
             .unwrap();
@@ -112,7 +114,7 @@ mod tests {
                 return TestResult::discard();
             }
 
-            let mut net: Net<BRBOrswot<u8>> = Net::new();
+            let mut net: Net<BRBOrswot> = Net::new();
             bootstrap_net(&mut net, n_procs);
 
             let actors_loop = net.actors().into_iter().collect::<Vec<_>>().into_iter().cycle();
@@ -139,7 +141,7 @@ mod tests {
                 return TestResult::discard();
             }
 
-            let mut net: Net<BRBOrswot<u8>> = Net::new();
+            let mut net: Net<BRBOrswot> = Net::new();
             bootstrap_net(&mut net, n_procs);
 
             // Model testing against the HashSet
@@ -180,11 +182,11 @@ mod tests {
 
             println!("------");
             println!("instr: {:?}", instructions);
-            let mut net: Net<BRBOrswot<u8>> = Net::new();
+            let mut net: Net<BRBOrswot> = Net::new();
             let genesis_actor = net.initialize_proc();
             net.on_proc_mut(&genesis_actor, |p| p.force_join(genesis_actor)).unwrap();
 
-            let mut packet_queues: BTreeMap<(Actor, Actor), Vec<Packet<_>>> = Default::default();
+            let mut packet_queues: BTreeMap<(Actor, Actor), Vec<Packet<_, _, _>>> = Default::default();
             let mut model: Orswot<u8, Actor> = Default::default();
             let mut blocked: HashSet<Actor> = Default::default();
 
