@@ -3,10 +3,10 @@ use std::collections::{BTreeMap, HashSet};
 use crdts::quickcheck::{quickcheck, TestResult};
 use crdts::{CmRDT, Orswot};
 
-use brb::net::{Actor, Net, Sig};
+use brb::net::{Actor, Net};
 use brb::{Error, MembershipError, Packet};
 
-type BRBOrswot = brb_dt_orswot::BRBOrswot<Actor, Sig, u8>;
+type BRBOrswot = brb_dt_orswot::BRBOrswot<Actor, u8>;
 
 fn bootstrap_net(net: &mut Net<BRBOrswot>, n_procs: u8) {
     let genesis_actor = net.initialize_proc();
