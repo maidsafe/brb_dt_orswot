@@ -1,14 +1,17 @@
 [package]
 name = "brb_dt_orswot"
 version = "0.1.0"
-authors = ["David Rusu <davidrusu.me@gmail.com>"]
-edition = "2018"
+description = "A BRBDataType wrapper for an ORSWOT from [rust-crdt]"
+authors = [ "David Rusu <davidrusu.me@gmail.com>" ]
 license = "MIT OR BSD-3-Clause"
+repository = "https://github.com/maidsafe/brb_dt_orswot"
+edition = "2018"
+
 
 [dependencies]
 crdts = "5.0.0"
-brb = { git = "https://github.com/maidsafe/brb.git", branch="master" }
-serde = "1.0.106"
+brb = "1.0.1"
+serde = "1.0.120"
 
 [profile.test]
 opt-level = 3
