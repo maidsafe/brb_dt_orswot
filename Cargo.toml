@@ -9,7 +9,7 @@ edition = "2018"
 
 [dependencies]
 crdts = "5.1.0"
-brb = "1.0.1"
+brb = "1.0.2"
 thiserror = "1.0"
 serde = "1.0.120"
 
