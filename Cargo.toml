@@ -1,6 +1,6 @@
 [package]
 name = "brb_dt_orswot"
-version = "1.0.1"
+version = "1.0.2"
 description = "A BRBDataType wrapper for an ORSWOT from [rust-crdt]"
 authors = [ "David Rusu <davidrusu.me@gmail.com>" ]
 license = "MIT OR BSD-3-Clause"
