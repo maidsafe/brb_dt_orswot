@@ -1,3 +1,17 @@
+// Copyright 2021 MaidSafe.net limited.
+//
+// This SAFE Network Software is licensed to you under the MIT license <LICENSE-MIT
+// http://opensource.org/licenses/MIT> or the Modified BSD license <LICENSE-BSD
+// https://opensource.org/licenses/BSD-3-Clause>, at your option. This file may not be copied,
+// modified, or distributed except according to those terms. Please review the Licences for the
+// specific language governing permissions and limitations relating to use of the SAFE Network
+// Software.
+
+//! A BRBDataType wrapper for an ORSWOT from rust-crdt.
+//!
+//! This enables ORSWOT CRDT operations to be transmitted in a BFT manner using
+//! Byzantine Reliable Broadcast.
+
 use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::{fmt::Debug, hash::Hash};
@@ -7,6 +21,7 @@ use crdts::{orswot, CmRDT};
 use serde::Serialize;
 use thiserror::Error;
 
+/// BRB wrapper for an Orswot CRDT
 #[derive(Debug, Serialize, PartialEq, Eq, Clone)]
 pub struct BRBOrswot<A: Hash + Ord + Clone, M: Clone + Eq + Hash> {
     actor: A,
@@ -14,28 +29,34 @@ pub struct BRBOrswot<A: Hash + Ord + Clone, M: Clone + Eq + Hash> {
 }
 
 impl<A: Hash + Ord + Clone + Debug, M: Clone + Eq + Hash> BRBOrswot<A, M> {
+    /// Generates an Orswot Add operation. (but does not apply it)
     pub fn add(&self, member: M) -> orswot::Op<M, A> {
         let add_ctx = self.orswot.read_ctx().derive_add_ctx(self.actor.clone());
         self.orswot.add(member, add_ctx)
     }
 
+    /// Generates an Orswot Rm operation. (but does not apply it)
     pub fn rm(&self, member: M) -> orswot::Op<M, A> {
         let rm_ctx = self.orswot.read_ctx().derive_rm_ctx();
         self.orswot.rm(member, rm_ctx)
     }
 
+    /// Check if the set contains a member
     pub fn contains(&self, member: &M) -> bool {
         self.orswot.contains(member).val
     }
 
+    /// Retrieves the BRB actor
     pub fn actor(&self) -> &A {
         &self.actor
     }
 
+    /// Retrieves the underlying orswot
     pub fn orswot(&self) -> &orswot::Orswot<M, A> {
         &self.orswot
     }
 
+    /// Read from the underlying orswot
     pub fn read(&self) -> HashSet<M> {
         self.orswot.read().val
     }
@@ -43,12 +64,19 @@ impl<A: Hash + Ord + Clone + Debug, M: Clone + Eq + Hash> BRBOrswot<A, M> {
 
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum ValidationError<E: std::error::Error + 'static> {
+    /// The source actor is not the same as the dot attached to the operation
     #[error("The source actor is not the same as the dot attached to the operation")]
     SourceDoesNotMatchOp,
+
+    /// Attempted to remove more than one member, this is not currently supported
     #[error("Attempted to remove more than one member, this is not currently supported")]
     RemoveOnlySupportedForOneMember,
+
+    /// Attempt to remove a member that we have not seen yet
     #[error("Attempt to remove a member that we have not seen yet")]
     RemovingDataWeHaventSeenYet,
+
+    /// Orswot validation error
     #[error(transparent)]
     Orswot(#[from] E),
 }
