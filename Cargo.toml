@@ -8,8 +8,9 @@ repository = "https://github.com/maidsafe/brb_dt_orswot"
 edition = "2018"
 
 [dependencies]
-crdts = "5.0.0"
+crdts = "5.1.0"
 brb = "1.0.1"
+thiserror = "1.0"
 serde = "1.0.120"
 
 [profile.test]
